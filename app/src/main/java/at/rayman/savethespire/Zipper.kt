@@ -11,11 +11,16 @@ import java.util.zip.ZipOutputStream
 
 private const val BUFFER_SIZE = 6 * 1024
 
-object ZipperKt {
+object Zipper {
 
-    fun zip(directory: LintFile, zipName: String) {
-        ZipOutputStream(BufferedOutputStream(FileOutputStream(zipName))).use { zos ->
-            zipDirectory(directory, "", zos)
+    fun zip(directory: LintFile): Result {
+        try {
+            ZipOutputStream(BufferedOutputStream(FileOutputStream(ZIP_PATH))).use { zos ->
+                zipDirectory(directory, "", zos)
+            }
+            return Result.success("Zip created")
+        } catch (e: Exception) {
+            return Result.error(e.message ?: "Unknown error while zipping")
         }
     }
 
