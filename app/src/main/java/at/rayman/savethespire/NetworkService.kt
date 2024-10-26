@@ -44,6 +44,6 @@ interface NetworkService {
 
     @Multipart
     @PUT("upload")
-    fun uploadZip(@Part zip: MultipartBody.Part): Call<ResponseBody>
+    fun uploadZip(@Part saveTheSpire: MultipartBody.Part): Call<ResponseBody>
 
 }

@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
@@ -110,7 +111,7 @@ class MainActivity : ComponentActivity() {
     fun uploadSave(): Result {
         val zipFile = File(ZIP_PATH)
         val filePart = MultipartBody.Part.createFormData(
-            "zip", zipFile.name,
+            "saveTheSpire", zipFile.name,
             RequestBody.create(null, zipFile)
         )
         try {
@@ -265,6 +266,7 @@ fun Greeting(zipSave: () -> Result, uploadSave: () -> Result) {
                 .fillMaxHeight()
                 .padding(bottom = 20.dp)
                 .horizontalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState())
         )
     }
 }
