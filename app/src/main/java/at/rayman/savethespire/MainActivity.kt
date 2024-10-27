@@ -43,7 +43,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
-import at.rayman.savethespire.NetworkService.Companion.uploadZip
+import at.rayman.savethespire.NetworkService.Companion.downloadSave
+import at.rayman.savethespire.NetworkService.Companion.uploadSave
 import at.rayman.savethespire.ui.theme.SaveTheSpireTheme
 import io.github.lumkit.io.LintFile
 import io.github.lumkit.io.LintFileConfiguration
@@ -64,8 +65,9 @@ import okhttp3.RequestBody
 import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.function.Supplier
 
-const val ZIP_PATH = "/storage/emulated/0/SaveTheSpire/SaveTheSpire.zip"
+const val ZIP_PATH = "/storage/emulated/0/SaveTheSpire.zip"
 
 const val STS_PATH = "/storage/emulated/0/Android/Data/com.humble.SlayTheSpire/files"
 
@@ -79,8 +81,10 @@ class MainActivity : ComponentActivity() {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Greeting(
                         zipSave = ::zipSave,
-                        uploadSave = ::uploadSave
-
+                        uploadSave = ::uploadSave,
+                        downloadSave = ::downloadSave,
+                        clearSaveDirectory = ::clearSaveDirectory,
+                        unzipSave = ::unzipSave
                     )
                 }
             }
@@ -94,8 +98,30 @@ class MainActivity : ComponentActivity() {
     }
 
     fun zipSave(): Result {
-        var result: Result = Result.error("Unknown error")
         val file = file(STS_PATH)
+        return doFileStuff(file) {
+            Zipper.zip(file)
+        }
+    }
+
+    fun unzipSave(): Result {
+        val file = file(ZIP_PATH)
+        return doFileStuff(file) {
+            Zipper.unzip(file)
+        }
+    }
+
+    fun clearSaveDirectory(): Result {
+        return doFileStuff(file(STS_PATH)) {
+            file("$STS_PATH/preferences").delete()
+            file("$STS_PATH/runs").delete()
+            file("$STS_PATH/saves").delete()
+            Result.success("Cleared directories")
+        }
+    }
+
+    fun doFileStuff(file: LintFile, action: Supplier<Result>): Result {
+        var result: Result = Result.error("Unknown error")
         file.use(onRequestPermission = {
             try {
                 handlePermissions(this, it, file)
@@ -103,7 +129,7 @@ class MainActivity : ComponentActivity() {
                 result = Result.error(e.message ?: "Error while requesting permission")
             }
         }, granted = {
-            result = Zipper.zip(file)
+            result = action.get()
         })
         return result
     }
@@ -115,7 +141,7 @@ class MainActivity : ComponentActivity() {
             RequestBody.create(null, zipFile)
         )
         try {
-            var response = NetworkService.uploadZip(filePart).execute()
+            var response = NetworkService.uploadSave(filePart).execute()
             return if (response.isSuccessful) {
                 Result.success("Upload ended with status: ${response.code()}")
             } else {
@@ -123,6 +149,21 @@ class MainActivity : ComponentActivity() {
             }
         } catch (e: Exception) {
             return Result.error(e.message ?: "Unknown error while uploading")
+        }
+    }
+
+    fun downloadSave(): Result {
+        try {
+            var response = NetworkService.downloadSave().execute()
+            return if (response.isSuccessful) {
+                val file = File(ZIP_PATH)
+                file.writeBytes(response.body()?.bytes() ?: byteArrayOf())
+                Result.success("Download ended with status: ${response.code()}")
+            } else {
+                Result.error("Download failed")
+            }
+        } catch (e: Exception) {
+            return Result.error(e.message ?: "Unknown error while downloading")
         }
     }
 
@@ -172,7 +213,10 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun Greeting(zipSave: () -> Result, uploadSave: () -> Result) {
+fun Greeting(
+    zipSave: () -> Result, uploadSave: () -> Result,
+    downloadSave: () -> Result, clearSaveDirectory: () -> Result, unzipSave: () -> Result
+) {
     val scope = rememberCoroutineScope()
     var loading by remember { mutableStateOf(false) }
     var log by remember { mutableStateOf("No Errors :D") }
@@ -201,6 +245,7 @@ fun Greeting(zipSave: () -> Result, uploadSave: () -> Result) {
                 onClick = {
                     scope.launch {
                         loading = true
+                        log += System.lineSeparator()
                         var result = withContext(Dispatchers.IO) {
                             zipSave()
                         }
@@ -209,6 +254,10 @@ fun Greeting(zipSave: () -> Result, uploadSave: () -> Result) {
                             uploadSave()
                         }
                         addLog(result.value)
+                        withContext(Dispatchers.IO) {
+                            File(ZIP_PATH).delete()
+                            addLog("Zip deleted")
+                        }
                         loading = false
                     }
                 },
@@ -226,7 +275,33 @@ fun Greeting(zipSave: () -> Result, uploadSave: () -> Result) {
             }
             Spacer(modifier = Modifier.width(20.dp))
             Button(
-                onClick = { },
+                onClick = {
+                    scope.launch {
+                        loading = true
+                        log += System.lineSeparator()
+                        var result = withContext(Dispatchers.IO) {
+                            downloadSave()
+                        }
+                        addLog(result.value)
+                        if (result.success) {
+                            result = withContext(Dispatchers.IO) {
+                                clearSaveDirectory()
+                            }
+                            addLog(result.value)
+                            if (result.success) {
+                                result = withContext(Dispatchers.IO) {
+                                    unzipSave()
+                                }
+                                addLog(result.value)
+                            }
+                            withContext(Dispatchers.IO) {
+                                File(ZIP_PATH).delete()
+                                addLog("Zip deleted")
+                            }
+                        }
+                        loading = false
+                    }
+                },
                 shape = RoundedCornerShape(15),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -275,6 +350,12 @@ fun Greeting(zipSave: () -> Result, uploadSave: () -> Result) {
 @Composable
 fun GreetingPreview() {
     SaveTheSpireTheme {
-        Greeting({ Result.success("Test") }, { Result.success("Test") })
+        Greeting(
+            { Result.success("zipSave") },
+            { Result.success("uploadSave") },
+            { Result.success("downloadSave") },
+            { Result.success("clearDirectories") },
+            { Result.success("unzipSave") }
+        )
     }
 }

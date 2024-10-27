@@ -6,6 +6,7 @@ import okhttp3.OkHttpClient
 import okhttp3.ResponseBody
 import retrofit2.Call
 import retrofit2.Retrofit
+import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.PUT
 import retrofit2.http.Part
@@ -36,14 +37,21 @@ interface NetworkService {
             retrofit.create(NetworkService::class.java)
         }
 
-        fun Companion.uploadZip(zip: MultipartBody.Part): Call<ResponseBody> {
-            return instance.uploadZip(zip)
+        fun Companion.uploadSave(zip: MultipartBody.Part): Call<ResponseBody> {
+            return instance.uploadSave(zip)
+        }
+
+        fun Companion.downloadSave(): Call<ResponseBody> {
+            return instance.downloadSave()
         }
 
     }
 
     @Multipart
     @PUT("upload")
-    fun uploadZip(@Part saveTheSpire: MultipartBody.Part): Call<ResponseBody>
+    fun uploadSave(@Part saveTheSpire: MultipartBody.Part): Call<ResponseBody>
+
+    @GET("download")
+    fun downloadSave(): Call<ResponseBody>
 
 }
