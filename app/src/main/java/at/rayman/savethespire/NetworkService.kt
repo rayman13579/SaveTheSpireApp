@@ -48,10 +48,10 @@ interface NetworkService {
     }
 
     @Multipart
-    @PUT("upload")
+    @PUT("/")
     fun uploadSave(@Part saveTheSpire: MultipartBody.Part): Call<ResponseBody>
 
-    @GET("download")
+    @GET("/")
     fun downloadSave(): Call<ResponseBody>
 
 }

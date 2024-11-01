@@ -145,7 +145,7 @@ class MainActivity : ComponentActivity() {
             return if (response.isSuccessful) {
                 Result.success("Upload ended with status: ${response.code()}")
             } else {
-                Result.error("Upload failed")
+                Result.error("Upload failed with status: ${response.code()}")
             }
         } catch (e: Exception) {
             return Result.error(e.message ?: "Unknown error while uploading")
@@ -233,7 +233,7 @@ fun Greeting(
     ) {
         Spacer(modifier = Modifier.fillMaxHeight(0.15f))
         Text(
-            "Slay the Spire Cloud Save",
+            "Slay the Spire Cross Save",
             fontSize = 30.sp
         )
         Spacer(modifier = Modifier.fillMaxHeight(0.2f))
