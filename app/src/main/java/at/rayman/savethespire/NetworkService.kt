@@ -45,6 +45,10 @@ interface NetworkService {
             return instance.downloadSave()
         }
 
+        fun Companion.getLatestCommit(): Call<ResponseBody> {
+            return instance.getLatestCommit()
+        }
+
     }
 
     @Multipart
@@ -53,5 +57,8 @@ interface NetworkService {
 
     @GET("/")
     fun downloadSave(): Call<ResponseBody>
+
+    @GET("/commit")
+    fun getLatestCommit(): Call<ResponseBody>
 
 }

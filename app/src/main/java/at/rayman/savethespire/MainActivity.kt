@@ -38,12 +38,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import at.rayman.savethespire.NetworkService.Companion.downloadSave
+import at.rayman.savethespire.NetworkService.Companion.getLatestCommit
 import at.rayman.savethespire.NetworkService.Companion.uploadSave
 import at.rayman.savethespire.ui.theme.SaveTheSpireTheme
 import io.github.lumkit.io.LintFile
@@ -79,12 +81,13 @@ class MainActivity : ComponentActivity() {
         setContent {
             SaveTheSpireTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
+                    Page(
                         zipSave = ::zipSave,
                         uploadSave = ::uploadSave,
                         downloadSave = ::downloadSave,
                         clearSaveDirectory = ::clearSaveDirectory,
-                        unzipSave = ::unzipSave
+                        unzipSave = ::unzipSave,
+                        getLatestCommit = ::getLatestCommit
                     )
                 }
             }
@@ -167,6 +170,15 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    fun getLatestCommit(): String {
+        var response = NetworkService.getLatestCommit().execute()
+        return if (response.isSuccessful) {
+            response.body()?.string() ?: "Error while getting latest commit"
+        } else {
+            "Error while getting latest commit"
+        }
+    }
+
     fun handlePermissions(activity: Activity, type: PermissionType, file: LintFile) {
         when (type) {
             PermissionType.EXTERNAL_STORAGE -> {
@@ -213,13 +225,19 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun Greeting(
+fun Page(
     zipSave: () -> Result, uploadSave: () -> Result,
-    downloadSave: () -> Result, clearSaveDirectory: () -> Result, unzipSave: () -> Result
+    downloadSave: () -> Result, clearSaveDirectory: () -> Result, unzipSave: () -> Result,
+    getLatestCommit: () -> String
 ) {
     val scope = rememberCoroutineScope()
     var loading by remember { mutableStateOf(false) }
     var log by remember { mutableStateOf("No Errors :D") }
+    var latestCommit by remember { mutableStateOf("Loading...") }
+
+    scope.launch(Dispatchers.IO) {
+        latestCommit = getLatestCommit()
+    }
 
     fun addLog(value: String) {
         log += "\n" + DateTimeFormatter.ofPattern("HH:mm:ss")
@@ -257,6 +275,9 @@ fun Greeting(
                         withContext(Dispatchers.IO) {
                             File(ZIP_PATH).delete()
                             addLog("Zip deleted")
+                        }
+                        latestCommit = withContext(Dispatchers.IO) {
+                            getLatestCommit()
                         }
                         loading = false
                     }
@@ -327,11 +348,21 @@ fun Greeting(
                 progress = 0f,
                 modifier = Modifier
                     .padding(top = 20.dp)
-                    .height(10.dp)
+                    .height(8.dp)
                     .fillMaxWidth(0.8f)
             )
         }
-        Spacer(modifier = Modifier.fillMaxHeight(0.1f))
+        Spacer(modifier = Modifier.fillMaxHeight(0.03f))
+        Text(
+            "latest commit",
+            color = Color.Gray,
+            fontSize = 12.sp
+        )
+        Text(
+            latestCommit,
+            fontSize = 16.sp
+        )
+        Spacer(modifier = Modifier.fillMaxHeight(0.03f))
         TextField(
             value = log,
             enabled = false,
@@ -350,12 +381,13 @@ fun Greeting(
 @Composable
 fun GreetingPreview() {
     SaveTheSpireTheme {
-        Greeting(
+        Page(
             { Result.success("zipSave") },
             { Result.success("uploadSave") },
             { Result.success("downloadSave") },
             { Result.success("clearDirectories") },
-            { Result.success("unzipSave") }
+            { Result.success("unzipSave") },
+            { "latestCommit" }
         )
     }
 }
